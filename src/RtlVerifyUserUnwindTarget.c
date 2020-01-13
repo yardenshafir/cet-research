@@ -77,12 +77,14 @@ RtlVerifyUserUnwindTarget (
             if (ContinueType == KCONTINUE_LONGJUMP)
             {
                 guardFlags = IMAGE_GUARD_CF_LONGJUMP_TABLE_PRESENT;
-                configSize = FIELD_OFFSET(IMAGE_LOAD_CONFIG_DIRECTORY64, DynamicValueRelocTable);
+                configSize = RTL_SIZEOF_THROUGH_FIELD(IMAGE_LOAD_CONFIG_DIRECTORY64,
+                                                      GuardLongJumpTargetTable);
             }
             else
             {
                 guardFlags = IMAGE_GUARD_EH_CONTINUATION_TABLE_PRESENT;
-                configSize = sizeof(IMAGE_LOAD_CONFIG_DIRECTORY64);
+                configSize = RTL_SIZEOF_THROUGH_FIELD(IMAGE_LOAD_CONFIG_DIRECTORY64,
+                                                      GuardEHContinuationTable);
             }
             //
             // Probe the configuration directory, as LdrImageDirectoryEntryToLoadConfig only
