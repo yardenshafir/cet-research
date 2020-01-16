@@ -10,6 +10,9 @@ KiVerifyContextRecord (
 
     process = Thread->Tcb.Process;
 
+    //
+    // If control registers (RIP/RSP) aren't beind modified, no checks to do
+    //
     if (!BooleanFlagOn(ContextFrame->ContextFlags, CONTEXT_CONTROL))
     {
         return STATUS_SUCCESS;
