@@ -1,3 +1,22 @@
+INT
+RtlpTargetCompare (
+    _In_opt_ PVOID Context,
+    _In_ PCVOID Key,
+    _In_ PCVOID Datum
+    )
+{
+    ULONG_PTR rva1;
+    ULONG_PTR rva2;
+    UNREFERENCED_PARAMETER(Context);
+    
+    //
+    // Return if the compared RVA comes before (-1), after (+1), or identical (0)
+    //
+    rva1 = *(PULONG_PTR)Key;
+    rva2 = *(PULONG_PTR)Datum;
+    return (INT)(rva1 - rva2);
+}
+
 NTSTATUS
 RtlVerifyUserUnwindTarget (
     _In_ PVOID TargetRip,
@@ -16,6 +35,7 @@ RtlVerifyUserUnwindTarget (
     SIZE_T metaSize;
     BOOLEAN found;
     PVOID entry;
+    
     //
     // First, do a quick lookup in the user function table, which should almost always work
     //
@@ -51,6 +71,7 @@ RtlVerifyUserUnwindTarget (
             userFunctionTable.SizeOfImage = (ULONG)imageSize;
         }
     }
+    
     //
     // Did we find a loaded module at this address?
     //
@@ -66,10 +87,12 @@ RtlVerifyUserUnwindTarget (
             // RtlImageNtHeaderEx which does a proper probe of the whole header already.
             //
             ProbeForRead(userFunctionTable.ImageBase, 64, 1);
+            
             //
             // Get the Image Load Config Directory. Note that this is a user-mode pointer
             //
             loadConfig = LdrImageDirectoryEntryToLoadConfig(userFunctionTable.ImageBase);
+            
             //
             // For longjmp, use the longjump table, otherwise, for unwind, use the dynamic
             // exception handler continuation table.
@@ -93,6 +116,7 @@ RtlVerifyUserUnwindTarget (
             // This probe will also raise if loadConfig is NULL (unless this is NTVDM on 32-bit).
             //
             ProbeForRead(loadConfig, configSize, 1);
+            
             //
             // Make sure there's a load configuration directory, that it's large enough to have
             // one of the two tables we care about, and that the guard flags indicate that the
@@ -116,6 +140,7 @@ RtlVerifyUserUnwindTarget (
             //
             return GetExceptionCode();
         }
+        
         //
         // Use the correct table and count (longjmp vs. unwind)
         //
@@ -129,6 +154,7 @@ RtlVerifyUserUnwindTarget (
             table = (PVOID)loadConfig->GuardEHContinuationTable;
             count = loadConfig->GuardEHContinuationCount;
         }
+        
         //
         // More than 4 billion entries are not allowed
         //
@@ -136,6 +162,7 @@ RtlVerifyUserUnwindTarget (
         {
             return STATUS_INTEGER_OVERFLOW;
         }
+        
         //
         // If the table is empty, then there can't be any valid targets in this image...
         //
@@ -145,10 +172,12 @@ RtlVerifyUserUnwindTarget (
             // PE Images are always <= 4GB, so compute the 32-bit RVA
             //
             rva = (ULONG)((ULONG_PTR)TargetRip - (ULONG_PTR)userFunctionTable.ImageBase);
+            
             //
             // The guard tables can have n-bytes of metadata, indicated by the upper nibble
             //
             metaSize = loadConfig->GuardFlags >> IMAGE_GUARD_CF_FUNCTION_TABLE_SIZE_SHIFT;
+            
             //
             // Search through the guard table for this RVA
             //
@@ -162,6 +191,7 @@ RtlVerifyUserUnwindTarget (
             }
         }
     }
+    
     //
     // Either there's no valid image mapped at this address, or there is, but its relevant guard
     // table does not contain the target RIP requested (as a reminder, if there's no table, then
@@ -178,6 +208,7 @@ RtlVerifyUserUnwindTarget (
             return STATUS_SUCCESS;
         }
     }
+    
     //
     // Otherwise, we either didn't find a dynamic handler, or this wasn't an unwind to begin with,
     // so fail the request.
