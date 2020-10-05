@@ -8,6 +8,10 @@ KeVerifyContextIpForUserCet (
 {
     PEPROCESS process;
     NTSTATUS status;
+    BOOLEAN cetRelaxedMode;
+    ULONG64 userRip;
+    BOOLEAN notRelaxed;
+    KCONTINUE_TYPE continueType;
 
     //
     // No need to do anything if shadow stack is not enabled
@@ -31,16 +35,23 @@ KeVerifyContextIpForUserCet (
     //
     // Verify the new Rip target
     //
-    status = KiVerifyContextIpForUserCet(Thread, Context, ContinueType, ShadowStack);
+    cetRelaxedMode = process->MitigationFlags2Values.UserCetSetContextIpValidationRelaxedMode & 1 != 0;
+    status = KiVerifyContextIpForUserCet(Thread, Context, ContinueType, cetRelaxedMode, ShadowStack);
 
     //
-    // Audit failure if requested and fake success
+    // Log failure if needed and fake success
     //
-    if ((status == STATUS_SET_CONTEXT_DENIED) &&
-        (process->MitigationFlags2Values.AuditUserCetSetContextIpValidation))
+    if ( status == STATUS_SET_CONTEXT_DENIED )
     {
-        KiLogUserCetSetContextIpValidationAudit(*ContinueType);
-        status = STATUS_SUCCESS;
+        userRip = Context->Rip;
+        continueType = *ContinueType;
+        notRelaxed = CetRelaxedMode ^ 1;
+        if (!(process->MitigationFlags2Values.AuditUserCetSetContextIpValidation))
+        {
+            KiLogUserCetSetContextIpValidationFailure(2, continueType, userRip, notRelaxed);
+            return status;
+        }
+        KiLogUserCetSetContextIpValidationFailure(1, continueType, userRip, notRelaxed);
     }
     return status;
 }
